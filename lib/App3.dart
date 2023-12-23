@@ -1,16 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-
-import 'providers/userprofile.provider.dart';
 import 'tools/UI.tool.dart';
-
 
 void main() {
   runApp(MyApp());
 }
 
-/*class MyApp extends StatelessWidget {
+class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
@@ -21,26 +18,16 @@ void main() {
       ),
     );
   }
-}*/
+}
 
-class MyApp extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (context) {
-          return ProfileProvider();
-        }),
-      ],
-      child: MaterialApp(
-        title: 'Flutter Demo',
-        theme: ThemeData(
-          primarySwatch: Colors.blue,
-          visualDensity: VisualDensity.adaptivePlatformDensity,
-        ),
-        home: MyHomePage(),
-      ),
-    );
+class ProfileProvider with ChangeNotifier {
+  int _counter = 0;
+
+  int get counter => _counter;
+
+  void increment() {
+    _counter++;
+    notifyListeners();
   }
 }
 
@@ -50,69 +37,63 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  Widget _currentWidget = HomeScreen();
-final List<Map<String, dynamic>> routes = [
+  
+  final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
+
+  void _navigateTo(String routeName) {
+    _navigatorKey.currentState!.pushNamedAndRemoveUntil(routeName, (route) => false);
+  }
+  final List<Map<String, String>> routes = [
     {'route': '/home', 'title': 'Home', 'icon': 'home'},
     {'route': '/profile', 'title': 'Profile', 'icon': 'person'},
     // เพิ่ม routes อื่นๆ ที่นี่
   ];
-  Widget getPageWidget(String route) {
-    switch (route) {
-      case '/home':
-        return HomeScreen();
+  Route<dynamic> _generateRoute(RouteSettings settings) {
+    WidgetBuilder builder;
+    switch (settings.name) {
+      case '/':
+        builder = (BuildContext _) => HomeScreen();
+        break;
       case '/profile':
-        return ProfileScreen();
+        builder = (BuildContext _) => ProfileScreen();
+        break;
       default:
-        return HomeScreen();
+        builder = (BuildContext _) => HomeScreen(); // Default to HomeScreen
+        break;
     }
+    return MaterialPageRoute(builder: builder, settings: settings);
   }
 
-  void _changePage(String route) {
-    setState(() {
-      _currentWidget = getPageWidget(route);
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
-    return PageRouter(
-      goTo: _changePage,
-      child: Scaffold(
-        appBar: AppBar(
-          title: Text('Shared Provider'),
-        ),
-        drawer: Drawer(
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Shared AppBar'),
+      ),
+      drawer: Drawer(
         child: ListView(
           padding: EdgeInsets.zero,
           children: <Widget>[
             AppDrawerHeader(),
             AppDrawerItems(
-                routes: routes,
-                onChangePage: _changePage,
-                getIcon: getIconData),
+              routes: routes,
+              onItemTap: (route) {
+                Navigator.of(context).pop(); // Close the drawer
+                _navigateTo(route);
+              },
+            ),
           ],
         ),
       ),
-        body: _currentWidget,
+      body: Navigator(
+        key: _navigatorKey,
+        onGenerateRoute: _generateRoute,
       ),
     );
   }
-}
-class PageRouter extends InheritedWidget {
-  final Function(String) goTo;
-  final Widget child;
 
-  PageRouter({Key? key, required this.goTo, required this.child}) : super(key: key, child: child);
-
-  static PageRouter? of(BuildContext context) {
-    return context.dependOnInheritedWidgetOfExactType<PageRouter>();
   }
-
-  @override
-  bool updateShouldNotify(PageRouter oldWidget) {
-    return goTo != oldWidget.goTo;
-  }
-}
 class AppDrawerHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -121,7 +102,7 @@ class AppDrawerHeader extends StatelessWidget {
         color: Colors.blue,
       ),
       child: Text(
-        'Drawer Header',
+        'Navigation Menu',
         style: TextStyle(
           color: Colors.white,
           fontSize: 24,
@@ -132,44 +113,43 @@ class AppDrawerHeader extends StatelessWidget {
 }
 
 class AppDrawerItems extends StatelessWidget {
-  final List<Map<String, dynamic>> routes;
-  final Function(String) onChangePage;
-  final Function(String) getIcon;
+  final List<Map<String, String>> routes;
+  final Function(String) onItemTap;
 
-  AppDrawerItems({required this.routes, required this.onChangePage, required this.getIcon});
+  AppDrawerItems({required this.routes, required this.onItemTap});
 
   @override
   Widget build(BuildContext context) {
     return Column(
-      children: routes.map((route) => DrawerItem(
-            title: route['title'],
-            iconData: getIcon(route['icon']),
-            onTap: () => onChangePage(route['route']),
-          )).toList(),
+      children: routes.map((routeInfo) {
+        return AppDrawerItem(
+          title: routeInfo['title']!,
+          route: routeInfo['route']!,
+          icon: getIconData(routeInfo['icon']!),
+          onTap: () => onItemTap(routeInfo['route']!),
+        );
+      }).toList(),
     );
   }
 }
 
-class DrawerItem extends StatelessWidget {
+class AppDrawerItem extends StatelessWidget {
   final String title;
-  final IconData iconData;
+  final String route;
+  final IconData icon;
   final VoidCallback onTap;
 
-  DrawerItem({required this.title, required this.iconData, required this.onTap});
+  AppDrawerItem({required this.title, required this.route, required this.icon, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      leading: Icon(iconData),
+      leading: Icon(icon),
       title: Text(title),
-      onTap: () {
-        onTap();
-        Navigator.pop(context);
-      },
+      onTap: onTap,
     );
   }
 }
-
 class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -189,8 +169,7 @@ class HomeScreen extends StatelessWidget {
           ElevatedButton(
             child: Text('Go to Profile Screen'),
             onPressed: () {
-              PageRouter.of(context)?.goTo('/profile');
- 
+              Navigator.of(context).pushNamed('/profile');
             },
           ),
         ],
@@ -214,7 +193,7 @@ class ProfileScreen extends StatelessWidget {
           ElevatedButton(
             child: Text('Go Back'),
             onPressed: () {
-              PageRouter.of(context)?.goTo('/home');
+              Navigator.of(context).pop();
             },
           ),
         ],
@@ -222,6 +201,3 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 }
-
-
-

@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 
-import 'App2.dart';
+
+//import 'App1.dart';// demo basic Navigator
+//import 'App2.dart';// demo Widget
+import 'App3.dart';//demo Widget +Navigator
+
+
 //import 'providers/userprofile.provider.dart';
 
 /**
